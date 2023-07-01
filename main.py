@@ -11,7 +11,7 @@ import praw
 import configparser
 
 # respect rate limits
-# see: https://www.reddit.com/r/redditdev/comments/13wsiks/api_update_enterprise_level_tier_for_large_scale/
+
 import time
 
 import requests
@@ -30,6 +30,7 @@ is_debug=True
 PORT=7777 # NOTE: 7777 is the default port for a Terraria server, change this if you happen to be playing Terraria online
 
 # RATE LIMITS
+# see: https://www.reddit.com/r/redditdev/comments/13wsiks/api_update_enterprise_level_tier_for_large_scale/
 # With oauth, 100 queries / 60 sec, or wait 0.6 sec/ query
 # with no oauth, 10 queries/ 60 sec or wait 6 sec/ query
 sec=60
@@ -43,10 +44,12 @@ READ_ONLY='Read-Only'
 AUTHORIZED='Authorized'
 
 #OAUTH2
+
+## duration
 TEMPORARY="temporary"
 # indicate you need permanent access for an account
 PERMANENT="permanent"
-
+RESPONSE_TYPE="code"
 
 # INIT
 praw_example_ini='praw_example.ini'
@@ -65,10 +68,10 @@ user_agent    = config.get('Read-Only', 'user_agent')
 # get info for Authorized Instance
 username     = config.get('Authorized', 'username')
 password     = config.get('Authorized', 'password')
-redirect_url = config.get('Authorized', 'redirect_url')
+redirect_uri = config.get('Authorized', 'redirect_uri')
 # END_INIT
 
-class NotDoneError(Exception):
+class Todo(Exception):
     "Raised when todo is not finished"
     
      # Call the base class constructor with the parameters it needs
@@ -81,7 +84,7 @@ class NotDoneError(Exception):
 
 def todo(msg):
 
-    raise NotDoneError(message=msg)
+    raise TodoError(message=msg)
 #fin
 
 # see: https://www.reddit.com/r/redditdev/comments/71ahst/how_to_edit_my_comments_in_a_subreddit_using_praw/
@@ -154,12 +157,18 @@ def get_refresh_token():
     # unique possibly random string for each auth request
     state = str(random.randint(0,65000))
     
+    # Authorization_URL: https://www.reddit.com/api/v1/authorize?client_id=CLIENT_ID&response_type=TYPE&
+    # state=RANDOM_STRING&redirect_uri=URI&duration=DURATION&scope=SCOPE_STRING
+    
     # TODO! This is broken
-    # url encoded
-    todo("Fix the reddit auth url")
+    todo("FIX - reddit authorization url")
+    # I'll have to do this manually
     url = reddit.auth.url(duration=PERMANENT, scopes=scopes, state=state)
     print(f"\nOpen this url in your browser: {url}\n")
+    url_fixed = f"https://www.reddit.com/api/v1/authorize?client_id={client_id}&response_type={RESPONSE_TYPE}&state={state}&redirect_url={redirect_url}&duration={PERMANENT}&scopes={scopes}"
+    print(f"\nOpen this url in your browser: {url_fixed}\n")
 
+    # NOTE nope
     decoded_url = unquote(url)
     print(f"\nOpen this url in your browser: {decoded_url}\n")
 
@@ -229,7 +238,7 @@ def main():
             username=username,
             password=password,
             # required for OAuth
-            redirect_uri=redirect_url,
+            redirect_uri=redirect_uri,
         )
     #fi
 
@@ -248,8 +257,11 @@ Reddit you need an `authorized instance`.
 
     # retrieve code to exchange for access token
     refresh_token = get_refresh_token()
-    url_access_token="https://www.reddit.com/api/v1/access_token"
-    # include grant_type=authorization_code&code=CODE&redirect_uri=URI
+    # POST to this URL
+    # include the following in your post data: grant_type=authorization_code&code=CODE&redirect_uri=URI
+    access_token_url="https://www.reddit.com/api/v1/access_token"
+    
+    
     # create a reddit user object with our username
     reddit_user=reddit.redditor(username)
     subreddit_test='test'
@@ -270,10 +282,19 @@ Reddit you need an `authorized instance`.
 
     Base64(client_id:client_secret)
     """
-    print(f"base64 encode test {base64.b64encode('hello world')}")
+    credentials=base64.b64encode(f"{client_id}:{client_secret}")
+    # add this to the POST authorization header
+    print(f"auth header content: {credentials}")
     # try editing comments
     # edit_user_comment_in_subreddit(reddit, reddit_user, subreddit_test)
 
+    authorization_code = input(
+        "Copy the authorization code from your browser: "
+    )
+    payload = f"""
+    grant_type={authorization_code}&code=CODE&redirect_uri={redirect_uri}
+    """
+    # r = requests.post(access_token_url, headers={'Authorization': credentials}, data=payload)
 #fin
 
 if __name__ == "__main__":
