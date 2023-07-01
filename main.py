@@ -36,6 +36,7 @@ PORT=7777 # NOTE: 7777 is the default port for a Terraria server, change this if
 sec=60
 queries=100
 OPTIMAL_SLEEP_TIME=sec/queries
+# slightly longer sleep time
 BUFFERED_OPTIMAL_SLEEP_TIME=sec/queries * 1.5 
 SLEEP_TIME=1
 
@@ -71,7 +72,7 @@ password     = config.get('Authorized', 'password')
 redirect_uri = config.get('Authorized', 'redirect_uri')
 # END_INIT
 
-class Todo(Exception):
+class TodoError(Exception):
     "Raised when todo is not finished"
     
      # Call the base class constructor with the parameters it needs
@@ -124,7 +125,7 @@ def handle_connection():
     # check NETWORK_SETTINGS to see what ports we're using
     print(f"Server binding to http://127.0.0.1:{PORT}")
     server.bind(("127.0.0.1", PORT))
-    
+    server.listen(1)
     client = server.accept()[0]
     server.close()
     
@@ -141,7 +142,7 @@ def send_message(client, message):
 
 # see: https://praw.readthedocs.io/en/stable/tutorials/refresh_token.html
 # https://github.com/reddit-archive/reddit/wiki/OAuth2
-
+# https://praw.readthedocs.io/en/stable/getting_started/authentication.html
 def get_refresh_token():
     scope_input = input(
         "Enter a comma separated list of scopes, or '*' for all scopes: "
@@ -151,7 +152,7 @@ def get_refresh_token():
         client_id=client_id,
         client_secret=client_secret,
         user_agent=user_agent,
-        redirect_uri=redirect_url,
+        redirect_uri=redirect_uri,
     )
 
     # unique possibly random string for each auth request
@@ -161,20 +162,21 @@ def get_refresh_token():
     # state=RANDOM_STRING&redirect_uri=URI&duration=DURATION&scope=SCOPE_STRING
     
     # TODO! This is broken
-    todo("FIX - reddit authorization url")
+    # todo("FIX - reddit authorization url")
     # I'll have to do this manually
     url = reddit.auth.url(duration=PERMANENT, scopes=scopes, state=state)
     print(f"\nOpen this url in your browser: {url}\n")
-    url_fixed = f"https://www.reddit.com/api/v1/authorize?client_id={client_id}&response_type={RESPONSE_TYPE}&state={state}&redirect_url={redirect_url}&duration={PERMANENT}&scopes={scopes}"
-    print(f"\nOpen this url in your browser: {url_fixed}\n")
+
+    url_fixed = f"https://www.reddit.com/api/v1/authorize?client_id={client_id}&response_type={RESPONSE_TYPE}&state={state}&redirect_uri={redirect_uri}&duration={PERMANENT}&scopes={scopes}"
+    # print(f"\nOpen this url in your browser: {url_fixed}\n")
 
     # NOTE nope
     decoded_url = unquote(url)
-    print(f"\nOpen this url in your browser: {decoded_url}\n")
+    # print(f"\nOpen this url in your browser: {decoded_url}\n")
 
     client = handle_connection()
     data = client.recv(1024).decode("utf-8")
-    param_tokens = data.split("", 2)[1].split("?", 1)[1].split("&")
+    param_tokens = data.split(" ", 2)[1].split("?", 1)[1].split("&")
     params = {
         key: value for (key,value) in [token.split("=") for token in param_tokens]
     }
@@ -214,10 +216,10 @@ def main():
 
 
     if (is_debug):
-        print(f'client_id: { client_id }')
-        print(f"client_id: { config.get(READ_ONLY, 'client_id') }")
-        print(config.get(READ_ONLY, 'client_secret'))
-        print(config.get(READ_ONLY, 'user_agent'))
+        print(f'client_id:     { client_id }')
+        # print(f"client_id:     { config.get(READ_ONLY, 'client_id') }")
+        print(f"client_secret: {config.get(READ_ONLY, 'client_secret')}")
+        print(f"user_agent:    {config.get(READ_ONLY, 'user_agent')}")
         print(f"redirect_uri: {redirect_uri}")
     #fi
 
@@ -256,32 +258,17 @@ Reddit you need an `authorized instance`.
     # OAuth2 flow
 
     # retrieve code to exchange for access token
-    # refresh_token = get_refresh_token()
+    authorization_code = get_refresh_token()
     # POST to this URL
     # include the following in your post data: grant_type=authorization_code&code=CODE&redirect_uri=URI
     access_token_url="https://www.reddit.com/api/v1/access_token"
-    
+    print(f"authorization_code: {authorization_code}")
     
     # create a reddit user object with our username
     reddit_user=reddit.redditor(username)
     subreddit_test='test'
     # Authorization header requires base 64 encoding
-    """
-    When the user agent wants to send authentication credentials to the server, it may use the Authorization header field.
 
-    The Authorization header field is constructed as follows:[9]
-
-    The username and password are combined with a single colon (:). This means that the username itself cannot contain a colon.
-    The resulting string is encoded into an octet sequence. The character set to use for this encoding is by default unspecified, as long as it is compatible with US-ASCII, but the server may suggest use of UTF-8 by sending the charset parameter.[9]
-    The resulting string is encoded using a variant of Base64 (+/ and with padding).
-    The authorization method and a space character (e.g. "Basic ") is then prepended to the encoded string.
-
-    For example, if the browser uses Aladdin as the username and open sesame as the password, then the field's value is the Base64 encoding of Aladdin:open sesame, or QWxhZGRpbjpvcGVuIHNlc2FtZQ==. Then the Authorization header field will appear as:
-
-    Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ== 
-
-    Base64(client_id:client_secret)
-    """
     credentials=base64.b64encode(bytes(f"{client_id}:{client_secret}", 'utf-8'))
     # add this to the POST authorization header
     print(f"auth header content: {credentials}")
@@ -294,6 +281,9 @@ Reddit you need an `authorized instance`.
     payload = f"""
     grant_type={authorization_code}&code=CODE&redirect_uri={redirect_uri}
     """
+    
+    print(f"Sending POST request to: {access_token_url}")
+    print(f"with payload: {payload}")
     # r = requests.post(access_token_url, headers={'Authorization': credentials}, data=payload)
 #fin
 
