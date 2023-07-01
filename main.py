@@ -10,9 +10,15 @@ import praw
 # https://docs.python.org/3/library/configparser.html#configparser.ConfigParser
 import configparser
 
-# respect rate limit of 1 request/ sec
+# respect rate limits
 # see: https://www.reddit.com/r/redditdev/comments/13wsiks/api_update_enterprise_level_tier_for_large_scale/
 import time
+
+import requests
+import base64
+
+# decode url
+from urllib.parse import unquote
 
 # GENERAL SETTINGS
 # Set this to true if you want to use an authorized reddit instance
@@ -42,11 +48,11 @@ TEMPORARY="temporary"
 PERMANENT="permanent"
 
 
-# Initialization logic
+# INIT
 praw_example_ini='praw_example.ini'
 praw_ini='praw.ini'
 # change this when you want to change to production
-selected_ini=praw_example_ini
+selected_ini=praw_ini
 # set up configparser to read .ini
 config = configparser.ConfigParser()
 print(f'Configuring settings using: {selected_ini}')
@@ -60,6 +66,23 @@ user_agent    = config.get('Read-Only', 'user_agent')
 username     = config.get('Authorized', 'username')
 password     = config.get('Authorized', 'password')
 redirect_url = config.get('Authorized', 'redirect_url')
+# END_INIT
+
+class NotDoneError(Exception):
+    "Raised when todo is not finished"
+    
+     # Call the base class constructor with the parameters it needs
+    def __init__(self, message="Task is not done"):
+        self.message = message
+        super().__init__(self.message)
+    
+    pass
+#ass
+
+def todo(msg):
+
+    raise NotDoneError(message=msg)
+#fin
 
 # see: https://www.reddit.com/r/redditdev/comments/71ahst/how_to_edit_my_comments_in_a_subreddit_using_praw/
 def edit_user_comment_in_subreddit(r, user, subreddit):
@@ -115,20 +138,31 @@ def send_message(client, message):
 
 # see: https://praw.readthedocs.io/en/stable/tutorials/refresh_token.html
 # https://github.com/reddit-archive/reddit/wiki/OAuth2
-def get_refresh_token_example():
+
+def get_refresh_token():
     scope_input = input(
         "Enter a comma separated list of scopes, or '*' for all scopes: "
     )
     scopes = [scope.strip() for scope in scope_input.strip().split(",")]
     reddit = praw.Reddit(
-        user_agent="I'm a Bot by /u/BotMaster5000",
-        redirect_url="http://127.0.0.1:7777"
+        client_id=client_id,
+        client_secret=client_secret,
+        user_agent=user_agent,
+        redirect_uri=redirect_url,
     )
 
     # unique possibly random string for each auth request
     state = str(random.randint(0,65000))
+    
+    # TODO! This is broken
+    # url encoded
+    todo("Fix the reddit auth url")
     url = reddit.auth.url(duration=PERMANENT, scopes=scopes, state=state)
-    print(f"Open this url in your browser: {url}")
+    print(f"\nOpen this url in your browser: {url}\n")
+
+    decoded_url = unquote(url)
+    print(f"\nOpen this url in your browser: {decoded_url}\n")
+
     client = handle_connection()
     data = client.recv(1024).decode("utf-8")
     param_tokens = data.split("", 2)[1].split("?", 1)[1].split("&")
@@ -140,7 +174,7 @@ def get_refresh_token_example():
     if state != params["state"]:
         send_message(
             client,
-            f"[ERROR]: State mismatch. Expected: {state}, Received {params["state"]}",
+            f"[ERROR]: State mismatch. Expected: {state}, Received {params['state']}",
         )
         return 1
     elif "error" in params:
@@ -156,7 +190,8 @@ def get_refresh_token_example():
         client,
         f"Refresh token: {refresh_token}"
     )
-    return 0
+    print(f"returning refresh token: {refresh_token}")
+    return refresh_token
 #fin
 
 # 
@@ -194,7 +229,7 @@ def main():
             username=username,
             password=password,
             # required for OAuth
-            redirect_url=redirect_url,
+            redirect_uri=redirect_url,
         )
     #fi
 
@@ -208,9 +243,37 @@ Reddit you need an `authorized instance`.
         print("[INFO]: Your Reddit instance if Authorized")
     #fi
 
+
+    # OAuth2 flow
+
+    # retrieve code to exchange for access token
+    refresh_token = get_refresh_token()
+    url_access_token="https://www.reddit.com/api/v1/access_token"
+    # include grant_type=authorization_code&code=CODE&redirect_uri=URI
     # create a reddit user object with our username
     reddit_user=reddit.redditor(username)
-    edit_user_comment_in_subreddit(reddit, reddit_user, 'pcgaming')
+    subreddit_test='test'
+    # Authorization header requires base 64 encoding
+    """
+    When the user agent wants to send authentication credentials to the server, it may use the Authorization header field.
+
+    The Authorization header field is constructed as follows:[9]
+
+    The username and password are combined with a single colon (:). This means that the username itself cannot contain a colon.
+    The resulting string is encoded into an octet sequence. The character set to use for this encoding is by default unspecified, as long as it is compatible with US-ASCII, but the server may suggest use of UTF-8 by sending the charset parameter.[9]
+    The resulting string is encoded using a variant of Base64 (+/ and with padding).
+    The authorization method and a space character (e.g. "Basic ") is then prepended to the encoded string.
+
+    For example, if the browser uses Aladdin as the username and open sesame as the password, then the field's value is the Base64 encoding of Aladdin:open sesame, or QWxhZGRpbjpvcGVuIHNlc2FtZQ==. Then the Authorization header field will appear as:
+
+    Authorization: Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ== 
+
+    Base64(client_id:client_secret)
+    """
+    print(f"base64 encode test {base64.b64encode('hello world')}")
+    # try editing comments
+    # edit_user_comment_in_subreddit(reddit, reddit_user, subreddit_test)
+
 #fin
 
 if __name__ == "__main__":
