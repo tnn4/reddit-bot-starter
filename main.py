@@ -14,6 +14,12 @@ import configparser
 # see: https://www.reddit.com/r/redditdev/comments/13wsiks/api_update_enterprise_level_tier_for_large_scale/
 import time
 
+# GENERAL SETTINGS
+# Set this to true if you want to use an authorized reddit instance
+is_authorized=True
+# turn on debug for printing
+is_debug=True
+
 # NETWORK SETTINGS
 PORT=7777 # NOTE: 7777 is the default port for a Terraria server, change this if you happen to be playing Terraria online
 
@@ -26,10 +32,39 @@ OPTIMAL_SLEEP_TIME=sec/queries
 BUFFERED_OPTIMAL_SLEEP_TIME=sec/queries * 1.5 
 SLEEP_TIME=1
 
+# praw.ini data
+READ_ONLY='Read-Only'
+AUTHORIZED='Authorized'
+
+#OAUTH2
+TEMPORARY="temporary"
+# indicate you need permanent access for an account
+PERMANENT="permanent"
+
+
+# Initialization logic
+praw_example_ini='praw_example.ini'
+praw_ini='praw.ini'
+# change this when you want to change to production
+selected_ini=praw_example_ini
+# set up configparser to read .ini
+config = configparser.ConfigParser()
+print(f'Configuring settings using: {selected_ini}')
+config.read(selected_ini)
+
+# get info for Read-Only Instance
+client_id     = config.get('Read-Only', 'client_id')
+client_secret = config.get('Read-Only', 'client_secret')
+user_agent    = config.get('Read-Only', 'user_agent')
+# get info for Authorized Instance
+username     = config.get('Authorized', 'username')
+password     = config.get('Authorized', 'password')
+redirect_url = config.get('Authorized', 'redirect_url')
+
 # see: https://www.reddit.com/r/redditdev/comments/71ahst/how_to_edit_my_comments_in_a_subreddit_using_praw/
 def edit_user_comment_in_subreddit(r, user, subreddit):
     target_sleep_time=SLEEP_TIME
-    
+    comment_replacement="PUT REPLACEMENT TEXT HERE"
     target_subreddit=r.subreddit(subreddit)
 
     for comment in user.comments.new(limit=None):
@@ -79,6 +114,7 @@ def send_message(client, message):
 
 
 # see: https://praw.readthedocs.io/en/stable/tutorials/refresh_token.html
+# https://github.com/reddit-archive/reddit/wiki/OAuth2
 def get_refresh_token_example():
     scope_input = input(
         "Enter a comma separated list of scopes, or '*' for all scopes: "
@@ -89,9 +125,9 @@ def get_refresh_token_example():
         redirect_url="http://127.0.0.1:7777"
     )
 
-    
+    # unique possibly random string for each auth request
     state = str(random.randint(0,65000))
-    url = reddit.auth.url(duration="permanent", scopes=scopes, state=state)
+    url = reddit.auth.url(duration=PERMANENT, scopes=scopes, state=state)
     print(f"Open this url in your browser: {url}")
     client = handle_connection()
     data = client.recv(1024).decode("utf-8")
@@ -123,37 +159,15 @@ def get_refresh_token_example():
     return 0
 #fin
 
+# 
+def get_reddit_api_object():
+    pass
+#fin
 
 def main():
-    pass
+    
     print("Hello world! I'm a Reddit Bot.")
 
-    # Set this to true if you want to use an authorized reddit instance
-    is_authorized=True
-    is_debug=True
-
-    READ_ONLY='Read-Only'
-    AUTHORIZED='Authorized'
-
-    praw_example_ini='praw_example.ini'
-    praw_ini='praw.ini'
-    # change this when you want to change to production
-    selected_ini=praw_example_ini
-
-    # set up configparser to read .ini
-    config = configparser.ConfigParser()
-    print(f'Reading {selected_ini}')
-    config.read(selected_ini)
-    
-    # get info for Read-Only Instance
-    client_id     = config.get('Read-Only', 'client_id')
-    client_secret = config.get('Read-Only', 'client_secret')
-    user_agent    = config.get('Read-Only', 'user_agent')
-
-    # get info for Authorized Instance
-    username     = config.get('Authorized', 'username')
-    password     = config.get('Authorized', 'password')
-    redirect_url = config.get('Authorized', 'redirect_url')
 
     if (is_debug):
         print(f'client_id: { client_id }')
@@ -170,6 +184,7 @@ def main():
         user_agent=user_agent,
     )
 
+    # create authorized instanced if we're using authorized
     if (is_authorized):
         reddit = praw.Reddit(
             client_id=client_id,
@@ -201,3 +216,9 @@ Reddit you need an `authorized instance`.
 if __name__ == "__main__":
     sys.exit(main())
 #fi
+
+"""
+post with praw
+https://praw.readthedocs.io/en/latest/code_overview/models/subreddit.html#praw.models.Subreddit.submit
+see: https://www.reddit.com/r/redditdev/comments/pn757n/how_to_submit_a_post_using_praw/
+"""
