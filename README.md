@@ -33,10 +33,14 @@ Put those credentials into your `praw_example.ini` and copy that file to `praw.i
 
 # Install required libraries
 
-praw: `pip install praw`
+Library | Command | Description
+---|---|---
+praw | `pip install praw` | python reddit api wrapper
+requests | `pip install requests` | make network requests
 
 
-Run: `$ python main.py` or `$ python3 main.py` 
+Run: `$ python main.py` or `$ python3 main.py`
+
 --- 
 
 LICENSE
