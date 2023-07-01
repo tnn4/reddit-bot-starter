@@ -20,7 +20,7 @@ Create your app
 - apps
 - create apps
 - click script
-- for redirect_url: enter something like: http://127.0.0.1:7777/authorize_callback
+- for redirect_url: enter something like: http://127.0.0.1:7777
 ![create app](img/create_app.png)
 
 Get your app credentials
@@ -31,4 +31,13 @@ Get your app credentials
 
 Put those credentials into your `praw_example.ini` and copy that file to `praw.ini`.
 
-Run
+# Install required libraries
+
+praw: `pip install praw`
+
+
+Run: `$ python main.py` or `$ python3 main.py` 
+--- 
+
+LICENSE
+MIT/Apache2.0

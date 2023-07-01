@@ -218,7 +218,7 @@ def main():
         print(f"client_id: { config.get(READ_ONLY, 'client_id') }")
         print(config.get(READ_ONLY, 'client_secret'))
         print(config.get(READ_ONLY, 'user_agent'))
-        print(f"redirect_url: {redirect_url}")
+        print(f"redirect_uri: {redirect_uri}")
     #fi
 
     # Create the praw reddit object to interface with the api
@@ -256,7 +256,7 @@ Reddit you need an `authorized instance`.
     # OAuth2 flow
 
     # retrieve code to exchange for access token
-    refresh_token = get_refresh_token()
+    # refresh_token = get_refresh_token()
     # POST to this URL
     # include the following in your post data: grant_type=authorization_code&code=CODE&redirect_uri=URI
     access_token_url="https://www.reddit.com/api/v1/access_token"
@@ -282,7 +282,7 @@ Reddit you need an `authorized instance`.
 
     Base64(client_id:client_secret)
     """
-    credentials=base64.b64encode(f"{client_id}:{client_secret}")
+    credentials=base64.b64encode(bytes(f"{client_id}:{client_secret}", 'utf-8'))
     # add this to the POST authorization header
     print(f"auth header content: {credentials}")
     # try editing comments
